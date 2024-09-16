@@ -2,5 +2,5 @@
 
 ### Example usage
 ```shell
-python src/main.py --input <json> --output <ttl>
+python src/main.py -i <json> -c <mapping_conf> -o <ttl>
 ```
