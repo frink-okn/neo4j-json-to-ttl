@@ -104,8 +104,8 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
 
 if __name__ == '__main__':
 
-    parser = argparse.ArgumentParser(description='neo4j json-ld to ttl')
-    parser.add_argument('-i', '--input', required=True, type=pathlib.Path, help='A json-ld file from a Neo4j export')
+    parser = argparse.ArgumentParser(description='neo4j json to ttl')
+    parser.add_argument('-i', '--input', required=True, type=pathlib.Path, help='A json file from a Neo4j export')
     parser.add_argument('-c', '--conf', required=True, type=pathlib.Path, help='One of the yaml files found in conf')
     parser.add_argument('-o', '--output', required=True, type=pathlib.Path, help='A Turtle file')
 

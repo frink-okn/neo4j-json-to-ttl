@@ -1,4 +1,4 @@
-# neo4j-jsonld-to-ttl
+# neo4j-json-to-ttl
 
 ### Example usage
 ```shell
