@@ -28,10 +28,13 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
         conf_yaml = yaml.safe_load(conf)
         base = conf_yaml['base']
 
+        #lisa - use just base here
         base_namespace = Namespace(base['iri'])
 
         namespace_manager = NamespaceManager(Graph())
-        namespace_manager.bind(base['prefix'], base_namespace, override=False)
+        # lisa - don't need this? May do default prefix
+        if "prefix" in base:
+            namespace_manager.bind(base['prefix'], base_namespace, override=False)
 
         g = Graph(base=base['iri'])
         g.namespace_manager = namespace_manager
@@ -45,12 +48,18 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
             id = value["id"]
             t = value["type"]
             logger.debug(f"id: {id}, type: {t}")
-            properties = value["properties"]
+            # some relationship don't have properties, so must check here - lisa
+            if "properties" in value:
+                properties = value["properties"]
+            else:
+                properties = {}
             if t == "node":
                 for mapping in mappings:
                     if mapping in properties:
                         property_mapping = properties[mapping]
                         property_mapping = str(property_mapping).replace('\n', '')
+                        if 'iri' not in mappings[mapping]:
+                            mappings[mapping]['iri']= base_namespace + mapping
                         g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mappings[mapping]['iri']), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
 
                 labels = value["labels"]
