@@ -7,8 +7,8 @@ import sys
 import rdflib
 import yaml
 from rdflib import Namespace, Graph, XSD, IdentifiedNode, URIRef
-from rdflib.extras.describer import cast_value, Describer
-from rdflib.namespace import NamespaceManager
+# from rdflib.extras.describer import cast_value, Describer
+# from rdflib.namespace import NamespaceManager
 
 logger = logging.getLogger(__name__)
 # logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -27,17 +27,17 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
     with open(input, 'r') as file, open(conf, 'r') as conf:
         conf_yaml = yaml.safe_load(conf)
         base = conf_yaml['base']
+        # base_namespace = Namespace(base)
+        schema_namespace = Namespace(base + "schema/")
+        node_namespace = Namespace(base + "node/")
+        relationship_namespace = Namespace(base + "relationship/")
 
-        #lisa - use just base here
-        base_namespace = Namespace(base['iri'])
-
-        namespace_manager = NamespaceManager(Graph())
-        # lisa - don't need this? May do default prefix
-        if "prefix" in base:
-            namespace_manager.bind(base['prefix'], base_namespace, override=False)
-
-        g = Graph(base=base['iri'])
-        g.namespace_manager = namespace_manager
+        # g = Graph(base=base_namespace)
+        g = Graph()
+        g.bind("sdo", "https://schema.org/")
+        g.bind("schema", schema_namespace)
+        g.bind("node", node_namespace)
+        g.bind("relationship", relationship_namespace)
 
         # print(g.serialize(format="turtle"))
 
@@ -48,33 +48,44 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
             id = value["id"]
             t = value["type"]
             logger.debug(f"id: {id}, type: {t}")
-            # some relationship don't have properties, so must check here - lisa
+
+            # some relationships don't have properties, so must check here - lisa
             if "properties" in value:
                 properties = value["properties"]
             else:
                 properties = {}
+
             if t == "node":
+                # construct iri for node
+                iri = id
+                if "identifier" in properties:
+                    iri = properties["identifier"]
+
                 for mapping in mappings:
                     if mapping in properties:
                         property_mapping = properties[mapping]
                         property_mapping = str(property_mapping).replace('\n', '')
+
                         if 'iri' not in mappings[mapping]:
-                            mappings[mapping]['iri']= base_namespace + mapping
-                        g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mappings[mapping]['iri']), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
+                            mappings[mapping]['iri'] = schema_namespace + mapping
+                        g.add((rdflib.term.URIRef(iri, node_namespace), URIRef(mappings[mapping]['iri']), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
 
                 labels = value["labels"]
                 for label in labels:
-                    g.add((rdflib.term.URIRef(id, base_namespace), rdflib.namespace.RDF.type, rdflib.term.URIRef(label, base_namespace)))
+                    g.add((rdflib.term.URIRef(iri, node_namespace), rdflib.namespace.RDF.type, rdflib.term.URIRef(label, schema_namespace)))
 
             if t == "relationship":
+
                 label = value["label"]
                 start_id = value["start"]["id"]
                 end_id = value["end"]["id"]
-                g.add((rdflib.term.URIRef(start_id, base_namespace), rdflib.term.URIRef(label, base_namespace), rdflib.term.URIRef(end_id, base_namespace)))
-                g.add((rdflib.term.URIRef(id, base_namespace), rdflib.namespace.RDF.subject, rdflib.term.URIRef(start_id, base_namespace)))
-                g.add((rdflib.term.URIRef(id, base_namespace), rdflib.namespace.RDF.predicate, rdflib.term.URIRef(label, base_namespace)))
-                g.add((rdflib.term.URIRef(id, base_namespace), rdflib.namespace.RDF.object, rdflib.term.URIRef(end_id, base_namespace)))
-                g.add((rdflib.term.URIRef(id, base_namespace), rdflib.namespace.RDF.type, rdflib.namespace.RDF.Statement))
+                rel_id = id
+
+                g.add((rdflib.term.URIRef(start_id, node_namespace), rdflib.term.URIRef(label, schema_namespace), rdflib.term.URIRef(end_id, node_namespace)))
+                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.subject, rdflib.term.URIRef(start_id, node_namespace)))
+                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.predicate, rdflib.term.URIRef(label, schema_namespace)))
+                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.object, rdflib.term.URIRef(end_id, node_namespace)))
+                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.type, rdflib.namespace.RDF.Statement))
 
                 for mapping_key, mapping_value in mappings.items():
                     try:
@@ -86,25 +97,24 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
                         logger.debug(f"mapping: {mapping_value}, value: {property_mapping_value}, value type: {type(property_mapping_value)}")
 
                         if 'iri' not in mapping_value:
-                            g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mapping, base_namespace), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
+                            g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.term.URIRef(mapping, schema_namespace), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
+
                         else:
 
                             if mapping_value['type'] == 'IRI':
-
-                                g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mapping_value['iri']), rdflib.term.URIRef(f"{property_mapping_value}")))
+                                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.term.URIRef(f"{property_mapping_value}")))
 
                             else:
 
                                 if rdflib.XSD.dateTime.eq(URIRef(mapping_value['type'])):
 
                                     if "T" in property_mapping_value:
-                                        g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=rdflib.XSD.dateTime)))
+                                        g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=rdflib.XSD.dateTime)))
                                     else:
-                                        g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=XSD.date)))
+                                        g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=XSD.date)))
 
                                 else:
-
-                                    g.add((rdflib.term.URIRef(id, base_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
+                                    g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
                     except:
                         logger.exception("error")
 
