@@ -1,6 +1,4 @@
-base:
-  prefix: 'wokn'
-  iri: 'https://wildlife.proto-okn.net/kg/'
+base: 'https://wildlife.proto-okn.net/kg/'
 mappings:
   name:
     type: 'http://www.w3.org/2001/XMLSchema#string'
