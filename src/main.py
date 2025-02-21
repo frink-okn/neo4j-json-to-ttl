@@ -115,7 +115,7 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
                                 if 'iri' in mappings[mapping]:
                                     uriref = mappings[mapping]['iri']
                                 else:
-                                    uriref = schema_namespace
+                                    uriref = schema_namespace + mapping
                                 g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(uriref), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
 
                 labels = value["labels"]
