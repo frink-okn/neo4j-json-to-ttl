@@ -6,6 +6,7 @@ import sys
 
 import rdflib
 import yaml
+import tempfile
 from rdflib import Namespace, Graph, XSD, URIRef
 from flatten_json import flatten
 
@@ -60,18 +61,10 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
     with open(input, 'r') as file, open(conf, 'r') as conf:
         conf_yaml = yaml.safe_load(conf)
         base = conf_yaml['base']
+        
         schema_namespace = Namespace(base + "schema/")
         node_namespace = Namespace(base + "node/")
         relationship_namespace = Namespace(base + "relationship/")
-
-        # g = Graph(base=base_namespace)
-        g = Graph()
-        g.bind("sdo", "https://schema.org/")
-        g.bind("schema", schema_namespace)
-        g.bind("node", node_namespace)
-        g.bind("relationship", relationship_namespace)
-
-        # print(g.serialize(format="turtle"))
 
         node_id_mappings = {}
         prop_identifiers = []
@@ -79,7 +72,16 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
             prop_identifiers = conf_yaml['identifier_properties']
         mappings = conf_yaml['mappings']
 
+        # open file to serial graph into
+        ofd = open(output, 'a')
+
         for line in file:
+            g = Graph()
+            g.bind("sdo", "https://schema.org/")
+            g.bind("schema", schema_namespace)
+            g.bind("node", node_namespace)
+            g.bind("relationship", relationship_namespace)
+
             value = json.loads(line)
             id = value["id"]
             t = value["type"]
@@ -97,26 +99,33 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
                 for mapping in mappings:
                     if mapping in properties:
                         property_mapping = properties[mapping]
-                        property_mapping = str(property_mapping).replace('\n', '')
-                        if not id in node_id_mappings:
-                            node_id_mappings[id] = create_node_id_mapping(base, node_namespace, id, mappings, mapping, property_mapping, prop_identifiers)
-                        if mapping not in prop_identifiers:
-                            if mappings[mapping]['type'] == "IRI":
-                                if 'iri' in mappings[mapping]:
-                                    predicate = mappings[mapping]['iri']
+                        # skip triple if it has no value
+                        if property_mapping != '':
+                            property_mapping = str(property_mapping).replace('\n', '')
+                            if not id in node_id_mappings:
+                                node_id_mappings[id] = create_node_id_mapping(base, node_namespace, id, mappings, mapping, property_mapping, prop_identifiers)
+                            if mapping not in prop_identifiers:
+                                if mappings[mapping]['type'] == "IRI":
+                                    if 'iri' in mappings[mapping]:
+                                        predicate = mappings[mapping]['iri']
+                                    else:
+                                        predicate = node_id_mappings[id]['iri']
+                                    if 'base' in mappings[mapping]:
+                                        literal = mappings[mapping]['base'] + properties[mapping]
+                                    else:
+                                        literal = property_mapping
+                                    # make sure there are no newlines in iris for predicate or literal
+                                    literal = literal.replace('\n', '')
+                                    predicate = predicate.replace('\n', '')
+                                    g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(predicate), URIRef(literal)))
                                 else:
-                                    predicate = node_id_mappings[id]['iri']
-                                if 'base' in mappings[mapping]:
-                                    literal = mappings[mapping]['base'] + properties[mapping]
-                                else:
-                                    literal = property_mapping
-                                g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(predicate), URIRef(literal)))
-                            else:
-                                if 'iri' in mappings[mapping]:
-                                    uriref = mappings[mapping]['iri']
-                                else:
-                                    uriref = schema_namespace + mapping
-                                g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(uriref), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
+                                    if 'iri' in mappings[mapping]:
+                                        iriref = mappings[mapping]['iri']
+                                    else:
+                                        iriref = schema_namespace + mapping
+                                    # make sure there are no newlines in iri
+                                    iriref = iriref.replace('\n', '')
+                                    g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(iriref), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
 
                 labels = value["labels"]
                 for label in labels:
@@ -174,7 +183,8 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
                     except:
                         logger.exception("error")
 
-        g.serialize(destination=output)
+            # Serialize and append to file
+            ofd.write(g.serialize(format="nt"))
 
 
 if __name__ == '__main__':
