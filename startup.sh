@@ -36,7 +36,7 @@ done
 # retrieve the conversion config file
 wget $ConfigFile
 if [ $? -ne 0 ]; then
-  echo echo "wget of $ConfigFile failed with exit code $?. Exiting startup"
+  echo "wget of $ConfigFile failed with exit code $?. Exiting startup"
   exit 1
 fi
 
