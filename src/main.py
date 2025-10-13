@@ -7,8 +7,9 @@ import sys
 import rdflib
 import yaml
 import tempfile
-from rdflib import Namespace, Graph, XSD, URIRef
-from flatten_json import flatten
+from rdflib import Namespace, Graph, Literal, XSD, URIRef
+from rdflib.namespace import RDF
+from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 # logger.addHandler(logging.StreamHandler(sys.stdout))
@@ -21,171 +22,123 @@ logging.basicConfig(
     ]
 )
 
-def  isURI(str):
-    iri_prefixes = ['http:', 'https:', 'urn:', 'mailto:']
-    if str:
-        return False
-    else:
-        return (str.startswith(tuple(iri_prefixes)))
-
-def create_node_id_mapping(base, node_namspace, id, mappings, mapping, property_mapping, prop_identifiers):
-
-    node_id_mapping = {}
-    # set up default
-    node_id_mapping = {'iri': id, 'namespace': node_namspace}
-
-    # change iri, if needed  (type = IRI or CURIE)
-    # if iri gets changed, must save mapping from original id to new iri
-    if 'type' in mappings[mapping] and mappings[mapping]['type'] in ['IRI', 'CURIE']:
-        # check if it’s a CURIE using one of the defined prefixes
-        if mapping in prop_identifiers:
-            if isURI(property_mapping):
-                node_id_mapping['iri'] = property_mapping
-                node_id_mapping['namespace'] = property_mapping
-            else: # it is a bare id
-                # check to see if there is a base for this property value
-                # if so, append it to that
-                if 'base' in mappings[mapping]:
-                    node_id_mapping['namespace'] = mappings[mapping]['base']
-                    node_id_mapping['iri'] = node_id_mapping['namespace'] + property_mapping
-                # if not, append it to the global base value
-                else:
-                    node_id_mapping['iri'] = base + property_mapping
-                    node_id_mapping['namespace'] = base
-
-    return node_id_mapping
-
 def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
     logger.info(f"input: {input}, output: {output}")
 
     with open(input, 'r') as file, open(conf, 'r') as conf:
         conf_yaml = yaml.safe_load(conf)
         base = conf_yaml['base']
-        
         schema_namespace = Namespace(base + "schema/")
         node_namespace = Namespace(base + "node/")
         relationship_namespace = Namespace(base + "relationship/")
-
         node_id_mappings = {}
-        prop_identifiers = []
-        if 'identifier_properties' in conf_yaml:
-            prop_identifiers = conf_yaml['identifier_properties']
-        mappings = conf_yaml['mappings']
+        
+        # open file to serialize graph into
+        with open(output, 'w') as ofd:
+            for line in file:
+                graph = Graph()
+                jsonline = json.loads(line)
+                t = jsonline["type"]
+                logger.debug(f"id: {id}, type: {t}")
 
-        # open file to serial graph into
-        ofd = open(output, 'a')
+                if t == "node":
+                    handle_node(jsonline, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph)
+                elif t == "relationship":
+                    handle_relationship(jsonline, conf_yaml, node_namespace, relationship_namespace, schema_namespace, node_id_mappings, graph)
+                ofd.write(graph.serialize(format="nt"))
 
-        for line in file:
-            g = Graph()
-            g.bind("sdo", "https://schema.org/")
-            g.bind("schema", schema_namespace)
-            g.bind("node", node_namespace)
-            g.bind("relationship", relationship_namespace)
+def handle_node(jsonline, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph):
+    local_id = jsonline["id"]        
+    props = jsonline.get("properties", {})   
+    id_props = conf_yaml.get("identifier_properties", [])         
+    if id_props:
+        node_id_value = next((props[key] for key in id_props if key in props), None)
+    if node_id_value:
+        uri_text = asURI(node_id_value, conf_yaml, node_namespace, jsonline['labels'])
+        if uri_text is not None:
+            node_iri = URIRef(uri_text)
+        else:
+            node_iri = node_namespace[local_id]
+    else:
+        node_iri = node_namespace[local_id]
+    node_id_mappings[local_id] = node_iri
+    for class_name in jsonline['labels']:
+        class_uri = URIRef(asURI(class_name, conf_yaml, schema_namespace))
+        graph.add((node_iri, RDF.type, class_uri))
+    handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph)
 
-            value = json.loads(line)
-            id = value["id"]
-            t = value["type"]
-            logger.debug(f"id: {id}, type: {t}")
+def handle_relationship(jsonline, conf_yaml, node_namespace, relationship_namespace, schema_namespace, node_id_mappings, graph):
+    pred = URIRef(asURI(jsonline['label'], conf_yaml, schema_namespace))
+    subj = node_id_mappings[jsonline['start']['id']]
+    obj = node_id_mappings[jsonline['end']['id']]
+    graph.add((subj, pred, obj))
+    if 'properties' in jsonline and jsonline['properties']:
+        rel_uri = URIRef(asURI(jsonline['id'], conf_yaml, relationship_namespace))
+        graph.add((rel_uri, RDF.type, RDF.Statement))
+        graph.add((rel_uri, RDF.subject, subj))
+        graph.add((rel_uri, RDF.predicate, pred))
+        graph.add((rel_uri, RDF.object, obj))
+        props = jsonline['properties']
+        handle_properties(rel_uri, props, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph)
 
-            # some relationships don't have properties, so must check here - lisa
-            if "properties" in value:
-                properties = value["properties"]
-            else:
-                properties = {}
-            properties = flatten(properties)
-
-            if t == "node":
-
-                for mapping in mappings:
-                    if mapping in properties:
-                        property_mapping = properties[mapping]
-                        # skip triple if it has no value
-                        if property_mapping != '':
-                            property_mapping = str(property_mapping).replace('\n', '')
-                            if not id in node_id_mappings:
-                                node_id_mappings[id] = create_node_id_mapping(base, node_namespace, id, mappings, mapping, property_mapping, prop_identifiers)
-                            if mapping not in prop_identifiers:
-                                if mappings[mapping]['type'] == "IRI":
-                                    if 'iri' in mappings[mapping]:
-                                        predicate = mappings[mapping]['iri']
-                                    else:
-                                        predicate = node_id_mappings[id]['iri']
-                                    if 'base' in mappings[mapping]:
-                                        literal = mappings[mapping]['base'] + properties[mapping]
-                                    else:
-                                        literal = property_mapping
-                                    # make sure there are no newlines in iris for predicate or literal
-                                    literal = literal.replace('\n', '')
-                                    predicate = predicate.replace('\n', '')
-                                    g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(predicate), URIRef(literal)))
-                                else:
-                                    if 'iri' in mappings[mapping]:
-                                        iriref = mappings[mapping]['iri']
-                                    else:
-                                        iriref = schema_namespace + mapping
-                                    # make sure there are no newlines in iri
-                                    iriref = iriref.replace('\n', '')
-                                    g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), URIRef(iriref), rdflib.Literal(property_mapping, datatype=URIRef(mappings[mapping]['type']))))
-
-                labels = value["labels"]
-                for label in labels:
-                    # set default namespace
-                    label_namespace = schema_namespace
-                    if label in mappings and 'iri' in mappings[label]:
-                        label_namespace = mappings[label]['iri']
-                    g.add((rdflib.term.URIRef(node_id_mappings[id]['iri'], node_id_mappings[id]['namespace']), rdflib.namespace.RDF.type, rdflib.term.URIRef(label, label_namespace)))
-
-            if t == "relationship":
-
-                label = value["label"]
-                label_namespace = schema_namespace
-                if label in mappings and 'iri' in mappings[label]:
-                    label_namespace = ""
-                    label = mappings[label]['iri']
-                start_id = value["start"]["id"]
-                end_id = value["end"]["id"]
-                rel_id = id
-
-                g.add((rdflib.term.URIRef(node_id_mappings[start_id]['iri'], node_id_mappings[start_id]['namespace']), rdflib.term.URIRef(label, label_namespace), rdflib.term.URIRef(node_id_mappings[end_id]['iri'], node_id_mappings[end_id]['namespace'])))
-                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.subject, rdflib.term.URIRef(node_id_mappings[start_id]['iri'], node_id_mappings[start_id]['namespace'])))
-                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.predicate, rdflib.term.URIRef(label, label_namespace)))
-                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.object, rdflib.term.URIRef(node_id_mappings[end_id]['iri'], node_id_mappings[end_id]['namespace'])))
-                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.namespace.RDF.type, rdflib.namespace.RDF.Statement))
-
-                for mapping_key, mapping_value in mappings.items():
+def handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph):
+    id_props = conf_yaml.get("identifier_properties", [])
+    for prop, value in props.items():
+        if isinstance(value, Sequence) and not isinstance(value, str):
+            values = value
+        else:
+            values = [value]
+        for value in values:
+            if prop not in id_props:
+                prop_uri = asURI(prop, conf_yaml, schema_namespace)
+                if prop_uri is None:
+                    logger.error(f"Didn't make a URI for predicate {prop}")
+                predicate = URIRef(prop_uri)
+                vt = value_type(prop, conf_yaml)
+                if vt == 'IRI':
+                    local_base = node_namespace
+                    if prop in conf_yaml['mappings'] and 'base' in conf_yaml['mappings'][prop]:
+                        local_base = conf_yaml['mappings'][prop]['base']
+                    maybe_uri = asURI(value, conf_yaml, local_base)
+                    if maybe_uri:
+                        prop_value = URIRef(maybe_uri)
+                    else:
+                        logger.warn(f"Creating literal for value '{value}' but we wanted an IRI for predicate {predicate}")
+                        prop_value = Literal(value)
+                elif vt is not None:
                     try:
+                        prop_value = Literal(value, datatype=URIRef(vt))
+                    except Exception as e:
+                        prop_value = Literal(value) #format problem; just put in as plain literal
+                else:
+                    prop_value = Literal(value)
+                graph.add((node_iri, predicate, prop_value))
 
-                        if not mapping_key in properties:
-                            continue
+def asURI(text, conf, default_base, class_labels=[]):
+    if text.startswith('http') or text.startswith('urn:') or text.startswith('mailto:'):
+        return text
+    elif text in conf['mappings'] and 'iri' in conf['mappings'][text]:
+        return conf['mappings'][text]['iri']
+    elif not any(c.isspace() for c in text) and ":" in text:
+        pieces = text.split(":", maxsplit=1)
+        if conf['prefixes'][pieces[0]]:
+            base = conf['prefixes'][pieces[0]]
+            return f"{base}{pieces[1]}"
+    elif not any(c.isspace() for c in text):
+        base = next(
+            (conf['mappings'][label]['base'] for label in class_labels if label in conf['mappings'] and 'base' in conf['mappings'][label]),
+            default_base
+        )
+        return f"{base}{text}"
+    else:
+        return None
 
-                        property_mapping_value = properties[mapping_key]
-                        logger.debug(f"mapping: {mapping_value}, value: {property_mapping_value}, value type: {type(property_mapping_value)}")
-
-                        if 'iri' not in mapping_value:
-                            g.add((rdflib.term.URIRef(rel_id, relationship_namespace), rdflib.term.URIRef(mapping, schema_namespace), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
-
-                        else:
-
-                            if mapping_value['type'] == 'IRI':
-                                g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.term.URIRef(f"{property_mapping_value}")))
-
-                            else:
-
-                                if rdflib.XSD.dateTime.eq(URIRef(mapping_value['type'])):
-
-                                    if "T" in property_mapping_value:
-                                        g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=rdflib.XSD.dateTime)))
-                                    else:
-                                        g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=XSD.date)))
-
-                                else:
-                                    g.add((rdflib.term.URIRef(rel_id, relationship_namespace), URIRef(mapping_value['iri']), rdflib.Literal(property_mapping_value, datatype=URIRef(mapping_value['type']))))
-                    except:
-                        logger.exception("error")
-
-            # Serialize and append to file
-            ofd.write(g.serialize(format="nt"))
-
+def value_type(prop, conf_yaml):
+    if prop in conf_yaml['mappings']:
+        prop_dict = conf_yaml['mappings'][prop]
+        if 'type' in prop_dict:
+            return prop_dict['type']
+    return None
 
 if __name__ == '__main__':
 
