@@ -115,6 +115,7 @@ def handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespa
                 graph.add((node_iri, predicate, prop_value))
 
 def asURI(text, conf, default_base, class_labels=[]):
+    text = str(text)
     if text.startswith('http') or text.startswith('urn:') or text.startswith('mailto:'):
         return text
     elif text in conf['mappings'] and 'iri' in conf['mappings'][text]:
