@@ -24,6 +24,8 @@ mappings:
 
 ### Mapping examples
 
+#### Node
+
 Input Neo4j JSON node:
 ```json
 {
@@ -75,3 +77,81 @@ Node labels are interpreted as class assertions, and an IRI to use for `Gene` is
 The `ensembl` property is in the mappings dict but does not have an `iri` key, so it is simply appended to the global base to get its IRI. It has a `type` value of `IRI`, so values for this property must themselves be converted to IRIs. It also has a `base` value, so that is combined with the property value `ENSG00000144843` to construct an IRI value `http://identifiers.org/ensembl/ENSG00000144843`.
 
 Finally, `name` and `description` are both mapped to IRIs in the mappings dict, and both expect literal string values.
+
+#### Relationship
+
+Input Neo4j JSON relationship:
+```json
+{
+  "type": "relationship",
+  "id": "1204717298368118784",
+  "label": "MEASURED_DIFFERENTIAL_EXPRESSION_ASmMG",
+  "properties": {
+    "adj_p_value": 0.0201527218609712,
+    "log2fc": -0.528829925079085
+  },
+  "start": {
+    "id": "0",
+    "labels": [
+       "Assay"
+    ],
+    "properties": {
+      "identifier": "OSD-183-35ad26b3c69c91f5574900fe906add87",
+      "factors_2": [
+        "Rad9 normal",
+        "sham-irradiated",
+        "direct irradiation (6 micron Mylar",
+        "nan Not Applicable"
+      ],
+      "material_2": "Cells",
+      "factors_1": [
+        "Rad9 normal",
+        "alpha-particle",
+        "direct irradiation"
+      ],
+      "material_1": "Cells",
+      "name": "OSD-183_transcription-profiling_dna-microarray_Agilent",
+      "material_name_1": "cell",
+      "material_id_1": "CL:0000000",
+      "material_id_2": "CL:0000000",
+      "technology": "DNA microarray",
+      "material_name_2": "cell",
+      "measurement": "transcription profiling"
+    }
+  },
+  "end": {
+    "id": "41759",
+    "labels": [
+      "MGene"
+    ],
+    "properties": {
+      "identifier": "891",
+      "symbol": "CCNB1",
+      "organism": "Homo sapiens",
+      "name": "cyclin B1",
+      "taxonomy": "9606"
+    }
+  }
+}
+```
+
+Config:
+```yaml
+base: 'https://purl.org/okn/frink/kg/spoke-genelab/'
+mappings:
+  adj_p_value:
+    type: 'http://www.w3.org/2001/XMLSchema#double'
+  log2fc:
+    type: 'http://www.w3.org/2001/XMLSchema#double'
+```
+
+Output RDF:
+```turtle
+<https://purl.org/okn/frink/kg/spoke-genelab/node/OSD-183-35ad26b3c69c91f5574900fe906add87> <https://purl.org/okn/frink/kg/spoke-genelab/schema/MEASURED_DIFFERENTIAL_EXPRESSION_ASmMG> <http://www.ncbi.nlm.nih.gov/gene/891> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <https://purl.org/okn/frink/kg/spoke-genelab/node/OSD-183-35ad26b3c69c91f5574900fe906add87> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://purl.org/okn/frink/kg/spoke-genelab/schema/MEASURED_DIFFERENTIAL_EXPRESSION_ASmMG> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <http://www.ncbi.nlm.nih.gov/gene/891> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <https://purl.org/okn/frink/kg/spoke-genelab/schema/adj_p_value> "0.0201527218609712"^^<http://www.w3.org/2001/XMLSchema#double> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <https://purl.org/okn/frink/kg/spoke-genelab/schema/log2fc> "-0.528829925079085"^^<http://www.w3.org/2001/XMLSchema#double> .
+```
