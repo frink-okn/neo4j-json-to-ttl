@@ -26,7 +26,19 @@ mappings:
 
 Input Neo4j JSON node:
 ```json
-{"type":"node","id":"95","labels":["Gene"],"properties":{"identifier":141,"ensembl":"ENSG00000144843","name":"ADPRH","description":"ADP-ribosylarginine hydrolase"}}
+{
+  "type": "node",
+  "id": "95",
+  "labels": [
+    "Gene"
+  ],
+  "properties": {
+    "identifier": 141,
+    "ensembl": "ENSG00000144843",
+    "name": "ADPRH",
+    "description": "ADP-ribosylarginine hydrolase"
+  }
+}
 ```
 
 Config:
