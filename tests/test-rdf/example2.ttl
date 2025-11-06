@@ -1,0 +1,31 @@
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/technology> "DNA microarray" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_1> "Rad9 normal" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_1> "Cells" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_2> "Cells" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_1> "direct irradiation" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/measurement> "transcription profiling" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_id_2> "CL:0000000" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_1> "alpha-particle" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_name_1> "cell" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_name_2> "cell" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/material_id_1> "CL:0000000" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_2> "Rad9 normal" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_2> "direct irradiation (6 micron Mylar" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/name> "OSD-183_transcription-profiling_dna-microarray_Agilent" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_2> "sham-irradiated" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://purl.org/okn/frink/kg/spoke-genelab/schema/Assay> .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/identifier> "OSD-183-35ad26b3c69c91f5574900fe906add87" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/factors_2> "nan Not Applicable" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <https://purl.org/okn/frink/kg/spoke-genelab/schema/identifier> "891" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <https://purl.org/okn/frink/kg/spoke-genelab/schema/symbol> "CCNB1" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <https://purl.org/okn/frink/kg/spoke-genelab/schema/name> "cyclin B1" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <https://purl.org/okn/frink/kg/spoke-genelab/schema/organism> "Homo sapiens" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <https://purl.org/okn/frink/kg/spoke-genelab/schema/taxonomy> "9606" .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/41759> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <https://purl.org/okn/frink/kg/spoke-genelab/schema/MGene> .
+<https://purl.org/okn/frink/kg/spoke-genelab/node/0> <https://purl.org/okn/frink/kg/spoke-genelab/schema/MEASURED_DIFFERENTIAL_EXPRESSION_ASmMG> <https://purl.org/okn/frink/kg/spoke-genelab/node/41759> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#type> <http://www.w3.org/1999/02/22-rdf-syntax-ns#Statement> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#subject> <https://purl.org/okn/frink/kg/spoke-genelab/node/0> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#predicate> <https://purl.org/okn/frink/kg/spoke-genelab/schema/MEASURED_DIFFERENTIAL_EXPRESSION_ASmMG> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <http://www.w3.org/1999/02/22-rdf-syntax-ns#object> <https://purl.org/okn/frink/kg/spoke-genelab/node/41759> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <https://purl.org/okn/frink/kg/spoke-genelab/schema/adj_p_value> "0.0201527218609712"^^<http://www.w3.org/2001/XMLSchema#double> .
+<https://purl.org/okn/frink/kg/spoke-genelab/relationship/1204717298368118784> <https://purl.org/okn/frink/kg/spoke-genelab/schema/log2fc> "-0.528829925079085"^^<http://www.w3.org/2001/XMLSchema#double> .

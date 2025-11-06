@@ -1,0 +1,10 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix biolink: <https://w3id.org/biolink/vocab/> .
+@prefix ncbigene: <http://www.ncbi.nlm.nih.gov/gene/> .
+
+ncbigene:141 rdf:type biolink:Gene .
+ncbigene:141 rdfs:label "ADPRH"^^xsd:string .
+ncbigene:141 rdfs:comment "ADP-ribosylarginine hydrolase"^^xsd:string .
+ncbigene:141 <https://purl.org/okn/frink/kg/spoke/schema/ensembl> <http://identifiers.org/ensembl/ENSG00000144843> .
