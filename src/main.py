@@ -23,8 +23,6 @@ logging.basicConfig(
 )
 
 def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
-    print(input)
-    print(conf)
     logger.info(f"input: {input}, output: {output}")
 
     with open(input, 'r') as file, open(conf, 'r') as conf:
