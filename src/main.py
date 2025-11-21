@@ -90,6 +90,7 @@ def handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespa
         else:
             values = [value]
         for value in values:
+            if not value continue
             if prop not in id_props:
                 prop_uri = asURI(prop, conf_yaml, schema_namespace)
                 if prop_uri is None:
