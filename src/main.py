@@ -48,9 +48,10 @@ def main(input: pathlib.Path, conf: pathlib.Path, output: pathlib.Path):
                 ofd.write(graph.serialize(format="nt"))
 
 def handle_node(jsonline, conf_yaml, node_namespace, schema_namespace, node_id_mappings, graph):
-    local_id = jsonline["id"]        
-    props = jsonline.get("properties", {})   
-    id_props = conf_yaml.get("identifier_properties", [])         
+    local_id = jsonline["id"]
+    props = jsonline.get("properties", {})
+    id_props = conf_yaml.get("identifier_properties", [])
+    node_id_value = None
     if id_props:
         node_id_value = next((props[key] for key in id_props if key in props), None)
     if node_id_value:
@@ -89,6 +90,8 @@ def handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespa
         else:
             values = [value]
         for value in values:
+            if not value:
+                continue
             if prop not in id_props:
                 prop_uri = asURI(prop, conf_yaml, schema_namespace)
                 if prop_uri is None:
@@ -106,10 +109,18 @@ def handle_properties(node_iri, props, conf_yaml, node_namespace, schema_namespa
                         logger.warn(f"Creating literal for value '{value}' but we wanted an IRI for predicate {predicate}")
                         prop_value = Literal(value)
                 elif vt is not None:
-                    try:
-                        prop_value = Literal(value, datatype=URIRef(vt))
-                    except Exception as e:
-                        prop_value = Literal(value) #format problem; just put in as plain literal
+                    if vt == 'http://www.w3.org/2001/XMLSchema#boolean':
+                        try:
+                            bool_value = str_to_bool(value)
+                            prop_value = Literal(bool_value)
+                        except:
+                            prop_value = Literal(value) #format problem; just put in as plain literal
+                    else:
+                        literal = Literal(value, datatype=URIRef(vt))
+                        if literal.value is not None:
+                            prop_value = literal
+                        else:
+                            prop_value = Literal(value) #format problem; just put in as plain literal
                 else:
                     prop_value = Literal(value)
                 graph.add((node_iri, predicate, prop_value))
@@ -140,6 +151,20 @@ def value_type(prop, conf_yaml):
         if 'type' in prop_dict:
             return prop_dict['type']
     return None
+
+def str_to_bool(val):
+    """Convert a string representation of truth to true or false.
+    True values are 'y', 'yes', 't', 'true', 'on', and '1'; false values
+    are 'n', 'no', 'f', 'false', 'off', and '0'.  Raises ValueError if
+    'val' is anything else.
+    """
+    val = str(val).lower()
+    if val in ('y', 'yes', 't', 'true', 'on', '1'):
+        return True
+    elif val in ('n', 'no', 'f', 'false', 'off', '0'):
+        return False
+    else:
+        raise ValueError("invalid truth value %r" % (val,))
 
 if __name__ == '__main__':
 

@@ -1,0 +1,16 @@
+base: 'https://purl.org/okn/frink/kg/spoke/'
+identifier_properties:
+  - 'identifier'
+mappings:
+  description:
+    iri: 'http://www.w3.org/2000/01/rdf-schema#comment'
+    type: 'http://www.w3.org/2001/XMLSchema#string'
+  ensembl:
+    type: IRI
+    base: 'http://identifiers.org/ensembl/'
+  name:
+    iri: 'http://www.w3.org/2000/01/rdf-schema#label'
+    type: 'http://www.w3.org/2001/XMLSchema#string'
+  Gene:
+    iri: 'https://w3id.org/biolink/vocab/Gene'
+    base: 'http://www.ncbi.nlm.nih.gov/gene/'

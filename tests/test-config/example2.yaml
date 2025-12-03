@@ -1,0 +1,6 @@
+base: "https://purl.org/okn/frink/kg/spoke-genelab/"
+mappings:
+  adj_p_value:
+    type: "http://www.w3.org/2001/XMLSchema#double"
+  log2fc:
+    type: "http://www.w3.org/2001/XMLSchema#double"
