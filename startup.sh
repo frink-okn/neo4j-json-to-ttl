@@ -1,6 +1,5 @@
 #!/bin/bash
 
-<<<<<<< HEAD
 # Initialize variables
 InputFile=""
 ConfigFile=""
