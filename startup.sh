@@ -14,7 +14,7 @@ Help()
    echo "Syntax: startup [-i <JSON FILE>] [-c <CONFIG URL>] [-w <WORKDIR>] [-h]"
    echo "options:"
    echo "-h                Display this help"
-   echo "-i <JSON FILE>    (Required) Path for input neo4j json file (supports .json or .json.gz)."
+   echo "-i <JSON FILE>    (Required) Path for input neo4j json file (supports .json, .json.gz, or .json.zst)."
    echo "-c <CONFIG URL>   (Required) Url for conversion configuration file."
    echo "-w <WORKDIR>      (Optional) Working directory. Defaults to /mnt/repo."
    echo
@@ -38,7 +38,7 @@ while getopts ":hi:c:w:" option; do
    case $option in
       h) # display Help
          Help
-         exit 0 # Use exit code 0 for help display
+         exit 0
          ;;
       i) # Input file
          InputFile=$OPTARG;;
@@ -47,11 +47,11 @@ while getopts ":hi:c:w:" option; do
       w) # Optional Working Directory
          WORKING_DIR_OPT=$OPTARG;;
      \?) # Invalid option
-         echo "Error: Invalid option -$OPTARG" >&2 # Redirect error to stderr
+         echo "Error: Invalid option -$OPTARG" >&2
          Help
          exit 1;;
       :) # Missing argument for an option
-         echo "Error: Option -$OPTARG requires an argument." >&2 # Redirect error to stderr
+         echo "Error: Option -$OPTARG requires an argument." >&2
          Help
          exit 1;;
    esac
@@ -77,50 +77,40 @@ if [ ! -f "$InputFile" ]; then
 fi
 
 # --- Set Working Directory and Config File Path ---
-# Use provided working dir, or environment variable, or default to /mnt/repo
 WORKING_DIR=${WORKING_DIR_OPT:-${WORKING_DIR:-/mnt/repo}}
-
-# Define output file path (uncompressed)
 OutputFile="${WORKING_DIR}/nt/graph.nt"
-# Define compressed output file path
 OutputFileGz="${OutputFile}.gz"
 
-# Create output directory if it doesn't exist
+# Create output directory
 OUTPUT_DIR=$(dirname "$OutputFile")
-if [ -n "$OUTPUT_DIR" ] && [ "$OUTPUT_DIR" != "." ]; then
-    echo "Ensuring output directory exists: $OUTPUT_DIR"
-    mkdir -p "$OUTPUT_DIR"
-    if [ $? -ne 0 ]; then
-        echo "Error: Could not create output directory '$OUTPUT_DIR'." >&2
-        exit 1
-    fi
-fi
-
-# Ensure the working directory exists (optional but good practice)
+mkdir -p "$OUTPUT_DIR"
 mkdir -p "$WORKING_DIR"
-if [ $? -ne 0 ]; then
-  echo "Error: Could not create working directory '$WORKING_DIR'." >&2
-  exit 1
-fi
 
-# --- Handle gzipped input files ---
+# --- Handle compressed input files (Gzip or Zstd) ---
 ACTUAL_INPUT_FILE="$InputFile"
 
-if [[ "$InputFile" == *.json.gz ]]; then
+if [[ "$InputFile" == *.gz ]]; then
     echo "Detected gzipped input file. Decompressing..."
-
-    # Create temporary unzipped file in working directory
     TEMP_UNZIPPED="${WORKING_DIR}/$(basename "${InputFile%.gz}")"
-
-    # Decompress the file
     gunzip -c "$InputFile" > "$TEMP_UNZIPPED"
-    gunzip_exit_code=$?
-
-    if [ $gunzip_exit_code -ne 0 ]; then
-        echo "Error: Failed to decompress '$InputFile' with exit code $gunzip_exit_code." >&2
+    DECOMPRESS_STATUS=$?
+elif [[ "$InputFile" == *.zst ]]; then
+    echo "Detected zstd compressed input file. Decompressing..."
+    if ! command -v zstd &> /dev/null; then
+        echo "Error: zstd is not installed. Please install it to process .zst files." >&2
         exit 1
     fi
+    TEMP_UNZIPPED="${WORKING_DIR}/$(basename "${InputFile%.zst}")"
+    zstd -d -c "$InputFile" > "$TEMP_UNZIPPED"
+    DECOMPRESS_STATUS=$?
+fi
 
+# Check if decompression was successful (if it was triggered)
+if [ -n "$TEMP_UNZIPPED" ]; then
+    if [ $DECOMPRESS_STATUS -ne 0 ]; then
+        echo "Error: Failed to decompress '$InputFile'." >&2
+        exit 1
+    fi
     echo "Decompressed to: $TEMP_UNZIPPED"
     ACTUAL_INPUT_FILE="$TEMP_UNZIPPED"
 fi
@@ -134,55 +124,36 @@ echo "Input File: $InputFile"
 echo "Actual Input File: $ACTUAL_INPUT_FILE"
 echo "Config URL: $ConfigFile"
 echo "Output File: $OutputFile"
-echo "Compressed Output: $OutputFileGz"
-echo "Local Config Path: $CONVERSION_MAPPING_FILE_NAME"
 echo "---------------------"
 
 # --- Retrieve the conversion config file ---
 echo "Downloading configuration from '$ConfigFile'..."
 wget "$ConfigFile" -O "$CONVERSION_MAPPING_FILE_NAME"
-wget_exit_code=$? # Capture exit code immediately
-
-if [ $wget_exit_code -ne 0 ]; then
-  echo "Error: wget of '$ConfigFile' failed with exit code $wget_exit_code. Exiting startup." >&2
-  # Clean up potentially partially downloaded/empty file
+if [ $? -ne 0 ]; then
+  echo "Error: wget of '$ConfigFile' failed." >&2
   rm -f "$CONVERSION_MAPPING_FILE_NAME"
   exit 1
 fi
-echo "Configuration downloaded successfully."
 
 # --- Run neo4j conversion ---
 echo "Running conversion..."
 python main.py -i "$ACTUAL_INPUT_FILE" -c "$CONVERSION_MAPPING_FILE_NAME" -o "$OutputFile"
-python_exit_code=$? # Capture exit code
-
-if [ $python_exit_code -ne 0 ]; then
-  echo "Error: Python script main.py failed with exit code $python_exit_code." >&2
+if [ $? -ne 0 ]; then
+  echo "Error: Python script main.py failed." >&2
   exit 1
 fi
 
-echo "Conversion completed successfully."
-
 # --- Compress the output file ---
-echo "Compressing output file..."
-# Remove existing .gz file if it exists
+echo "Compressing output file to Gzip..."
 rm -f "$OutputFileGz"
-
-# Compress the file
 gzip -c "$OutputFile" > "$OutputFileGz"
-gzip_exit_code=$?
 
-if [ $gzip_exit_code -ne 0 ]; then
-    echo "Error: Failed to compress output file with exit code $gzip_exit_code." >&2
+if [ $? -eq 0 ]; then
+    echo "Output compressed successfully to: $OutputFileGz"
+    [ -f "$OutputFile" ] && rm "$OutputFile" # Clean up uncompressed output
+else
+    echo "Error: Failed to compress output file." >&2
     exit 1
-fi
-
-echo "Output compressed successfully to: $OutputFileGz"
-
-# Get file size for logging
-if command -v du &> /dev/null; then
-    FILE_SIZE=$(du -h "$OutputFileGz" | cut -f1)
-    echo "Compressed file size: $FILE_SIZE"
 fi
 
 echo "Startup script finished successfully."
