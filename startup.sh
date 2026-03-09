@@ -101,7 +101,7 @@ elif [[ "$InputFile" == *.zst ]]; then
         exit 1
     fi
     TEMP_UNZIPPED="${WORKING_DIR}/$(basename "${InputFile%.zst}")"
-    zstd -d -c "$InputFile" > "$TEMP_UNZIPPED"
+    zstd --memory=2048MB -d -c "$InputFile" > "$TEMP_UNZIPPED"
     DECOMPRESS_STATUS=$?
 fi
 
