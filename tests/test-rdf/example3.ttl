@@ -1,0 +1,10 @@
+@prefix bibo: <http://purl.org/ontology/bibo/> .
+@prefix node: <https://purl.org/okn/frink/kg/nasa-gesdisc/node/> .
+@prefix schema: <https://purl.org/okn/frink/kg/nasa-gesdisc/schema/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+node:24890 a schema:Publication .
+node:24890 bibo:doi <http://dx.doi.org/10.57890/VIEMILIEU/2024.74-1/2:1-44> .
+
+node:65441 a schema:Publication .
+node:65441 bibo:doi <http://dx.doi.org/10.1175/1525-7541(2002)003%3c0660:EOFDFC%3e2.0.CO;2> .

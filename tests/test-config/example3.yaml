@@ -1,0 +1,6 @@
+base: 'https://purl.org/okn/frink/kg/nasa-gesdisc/'
+mappings:
+  doi:
+    type: 'IRI'
+    iri: 'http://purl.org/ontology/bibo/doi'
+    base: 'http://dx.doi.org/'
