@@ -133,9 +133,12 @@ def asURI(text, conf, default_base, class_labels=[]):
         return conf['mappings'][text]['iri']
     elif not any(c.isspace() for c in text) and ":" in text:
         pieces = text.split(":", maxsplit=1)
-        if conf['prefixes'][pieces[0]]:
+        if 'prefixes' in conf and pieces[0] in conf['prefixes']:
             base = conf['prefixes'][pieces[0]]
             return f"{base}{pieces[1]}"
+        else:
+            escaped_text = text.replace('<','%3c').replace('>','%3e')
+            return f"{default_base}{escaped_text}"
     elif not any(c.isspace() for c in text):
         base = next(
             (conf['mappings'][label]['base'] for label in class_labels if label in conf['mappings'] and 'base' in conf['mappings'][label]),
